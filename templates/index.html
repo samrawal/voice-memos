@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Notes</title>
+    <link rel="stylesheet" href="https://unpkg.com/@bafs/mu@0.3/mu.min.css" />
+    <style>
+        #drop-area {
+            border: 2px dashed #ccc;
+            border-radius: 20px; /* Added to make the border curved */
+            width: 100%;
+            max-width: 400px;
+            padding: 30px;
+            margin: 50px auto;
+            text-align: center;
+        }
+        #drop-area.highlight {
+            border-color: purple;
+        }
+    </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let dropArea = document.getElementById('drop-area');
+
+            // Load custom instructions from localStorage when the page loads
+            const customInstructionsTextarea = document.getElementById('custom_instructions');
+            customInstructionsTextarea.value = localStorage.getItem('customInstructions') || '';
+
+            // Save custom instructions to localStorage on change
+            customInstructionsTextarea.addEventListener('input', function () {
+                localStorage.setItem('customInstructions', customInstructionsTextarea.value);
+            });
+
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            dropArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                let dt = e.dataTransfer;
+                let files = dt.files;
+
+                document.getElementById("drop-area-text").innerHTML = "<p>Working...</p>";
+
+                uploadFile(files[0]);
+            }
+
+            function uploadFile(file) {
+                let url = '/upload';
+                let formData = new FormData();
+                formData.append('file', file);
+                
+                // Get custom instructions from the textarea
+                let customInstructions = customInstructionsTextarea.value;
+                formData.append('custom_instructions', customInstructions);
+
+                fetch(url, {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.summary) {
+                        document.getElementById('result').innerHTML = "<hr>" + data.summary + "</hr>";
+                        document.getElementById('desc').innerHTML = "";
+                        document.getElementById('footer').style.display = "block";
+                        document.getElementById("drop-area-text").innerHTML = "<p>Drag and drop an audio file here</p>";
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(() => alert('Upload failed.'));
+            }
+        });
+    </script>
+</head>
+<body>
+    <center>
+    <img src="{{ url_for('static', filename='icon.png') }}" alt="Icon" width="40%" style="border-radius: 40px;" class="icon">
+    <style>
+        @media (min-width: 600px) {
+            .icon {
+                width: 20%;
+            }
+        }
+    </style>
+    <h1>Voice Notes</h1>
+    <div id="desc" style="font-size: 0.9em; ">
+        <p>Upload an audio file -> get a transcription and formatted notes.</p>
+        <p>by Sam Rawal / <a href="https://samrawal.com">samrawal.com</a> / <a href="https://twitter.com/samarthrawal">@samarthrawal</a></p>
+        <p>✨ Powered by Google's <i>Gemini-1.5-Flash</i>; audio sent to model. I don't store any data on my end.</p>
+    </div>
+
+    <b>Custom Instructions:</b>
+    <textarea id="custom_instructions" rows="3" cols="80" placeholder="Optional. (ie 'Be concise', 'Respond in paragraph form like an essay', 'Give me a bulleted list')"></textarea>
+    <div id="drop-area">
+        <p id="drop-area-text">Drag and drop an audio file here</p>
+    </div>
+    </center>
+    <div id="result"></div>
+
+    <p id="footer" style="display: none;">by Sam Rawal / <a href="https://samrawal.com">samrawal.com</a> / <a href="https://twitter.com/samarthrawal">@samarthrawal</a></p>
+</body>
+</html>
